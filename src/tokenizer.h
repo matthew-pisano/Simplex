@@ -18,22 +18,23 @@ using namespace utils;
 /**
  * The type codes that tokens can take on
  */
-enum class TokenTypes {
-    op = 0,
-    eos = 1,
-    sep = 2,
-    kwd = 3,
-    id = 4,
-    litInt = 5,
-    litFlt = 6,
-    litBln = 7,
-    litStr = 8,
-    bgnBlk = 9,
-    endBlk = 10,
-    bgnBkt = 11,
-    endBkt = 12,
-    bgnPar = 13,
-    endPar = 14
+enum class TokenType {
+    op,
+    eos,
+    sep,
+    kwd,
+    id,
+    litInt,
+    litFlt,
+    litBln,
+    litStr,
+    bgnBlk,
+    endBlk,
+    bgnBkt,
+    endBkt,
+    bgnPar,
+    endPar,
+    prim,
 };
 
 
@@ -42,11 +43,11 @@ enum class TokenTypes {
  */
 struct Token {
     /** The type id of the token */
-    TokenTypes type;
+    TokenType type;
     /** The raw value of the token */
     string value;
 
-    Token(TokenTypes type, const string& value);
+    Token(TokenType type, const string& value);
 };
 
 
@@ -70,6 +71,8 @@ struct Tokenizer {
     /** The list of token separators */
     static const std::unordered_set<string> separators;
 
+    static const std::unordered_set<string> primitives;
+
     /** The end of statement token */
     static const string eos;
 
@@ -82,6 +85,10 @@ private:
      * @return The tokenized line as a vector
      */
     static vector<Token> tokenizeLine(const string& rawLine);
+
+    // static vector<Token> postProcessLine(const vector<Token>& tokens);
+
+    // static bool matchPattern(TokenType pattern[], const vector<Token>& tokens);
 
     /**
      * Pushes a symbol to the token vector if the next one or two characters are a valid symbol

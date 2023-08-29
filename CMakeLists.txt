@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.26)
-project(Simplex)
-
 set(CMAKE_CXX_STANDARD 23)
+project(Simplex)
 
 add_executable(simplex main.cpp
         src/utils.cpp

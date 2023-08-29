@@ -9,6 +9,7 @@
 #include <unordered_set>
 
 #include "utils.h"
+#include "tokenizer.h"
 
 
 using namespace utils;
@@ -27,9 +28,51 @@ struct Type {
     Type(string& token, map<Operator, std::function<any(any, any)>> opMap);
 };
 
+
+enum class OpCode {
+    mkVar,
+    rmVar,
+    mkFnc,
+    rmFnc,
+    setVar,
+    getVar,
+    callFnc,
+    add,
+    sub,
+    mul,
+    div,
+    binAnd,
+    binOr,
+    unNot,
+    gt,
+    lt,
+    ge,
+    le,
+    eq,
+    ne
+};
+
+
+struct Instruction {
+    OpCode opCode;
+    vector<string> args;
+
+    Instruction(OpCode opCode, vector<string> args);
+};
+
 class Compiler {
-    static const std::unordered_set<string> primitives;
     static std::map<string, Operator*> opMap;
+
+    static vector<Instruction> compile(const vector<Token>& tokens);
+
+private:
+    static vector<Instruction> compileLine(vector<Token> tokens, map<string, int>& functionGoTos);
+
+    static int getClosingIndex(vector<Token> tokens, int start, string openBlock, string closeBlock);
+
+    static vector<Instruction> compileExpression(vector<Token> tokens, int start, int end);
+
+    static OpCode getLineOpCode(const vector<Token>& tokens);
 };
 
 

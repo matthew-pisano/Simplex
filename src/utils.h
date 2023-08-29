@@ -10,9 +10,10 @@
 #include <vector>
 #include <map>
 #include <any>
+#include <stack>
 
 namespace utils {
-    using std::string, std::to_string, std::cout, std::endl, std::vector, std::map, std::runtime_error, std::hash, std::any;
+    using std::string, std::to_string, std::cout, std::endl, std::vector, std::stack, std::map, std::runtime_error, std::hash, std::any;
 }
 
 using namespace utils;

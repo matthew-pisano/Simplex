@@ -8,7 +8,7 @@
 #include "errors.h"
 
 
-Token::Token(TokenTypes type, const string& value) {
+Token::Token(TokenType type, const string& value) {
     this->type = type;
     this->value = value;
 }
@@ -17,9 +17,10 @@ const std::unordered_set<string> Tokenizer::stringDelim = {"\"", "'"};
 const std::unordered_set<string> Tokenizer::blockDelim = {"{", "}"};
 const std::unordered_set<string> Tokenizer::parenDelim = {"(", ")"};
 const std::unordered_set<string> Tokenizer::bracketDelim = {"[", "]"};
-const std::unordered_set<string> Tokenizer::operators = {"+", "-", "*", "~*", "/", "=", ":", "&&", "||", "<", ">", "<=", ">=", "==", "!", "~|"};
+const std::unordered_set<string> Tokenizer::operators = {"+", "-", "*", "~*", "/", "=", ":", "&&", "||", "<", ">", "<=", ">=", "==", "!=", "!", "~|"};
 const std::unordered_set<string> Tokenizer::keywords = {"func", "return", "if", "else", "null", "while", "for"};
 const std::unordered_set<string> Tokenizer::separators = {" ", ","};
+const std::unordered_set<string> Tokenizer::primitives = {"int", "bool", "float", "void", "str", "any"};
 
 const string Tokenizer::eos = ";";
 
@@ -39,6 +40,9 @@ vector<Token> Tokenizer::tokenize(string raw) {
         try{
             // Tokenize line and extend token vector
             vector<Token> lineTokens = tokenizeLine(line);
+            // lineTokens = postProcessLine(lineTokens);
+
+            lineTokens.emplace_back(TokenType::eos, eos);
             tokens.insert(tokens.end(), lineTokens.begin(), lineTokens.end());
         }catch (SyntaxError& e) {
             string postfix = " at line "+to_string(lineNum);
@@ -48,6 +52,25 @@ vector<Token> Tokenizer::tokenize(string raw) {
 
     return tokens;
 }
+
+//vector<Token> Tokenizer::postProcessLine(const vector<Token>& tokens) {
+//    TokenType mkVarPattern[] = {TokenType::id, TokenType::op, TokenType::id, TokenType::op};
+//    if(matchPattern(mkVarPattern, tokens)){
+//        if(tokens[1].value == ":" && tokens[3].value == "=")
+//    }
+//}
+//
+//bool Tokenizer::matchPattern(TokenType pattern[], const vector<Token>& tokens) {
+//    int pattLen = sizeof(pattern)/sizeof(pattern[0]);
+//
+//    if(pattLen > tokens.size()) return false;
+//
+//    for(int i=0; i<pattLen; i++)
+//        if(tokens[i].type != pattern[i]) return false;
+//
+//    return true;
+//}
+
 
 vector<Token> Tokenizer::tokenizeLine(const string& rawLine) {
     vector<Token> lineTokens;
@@ -88,7 +111,6 @@ vector<Token> Tokenizer::tokenizeLine(const string& rawLine) {
         identStr += strAt;
     }
     pushIdentifier(identStr, lineTokens);
-    lineTokens.emplace_back(TokenTypes::eos, Tokenizer::eos);
     return lineTokens;
 }
 
@@ -105,26 +127,27 @@ int Tokenizer::pushSymbol(const string& strAt, const string& strNext, string& id
     bool doubleOp = false;
     if((doubleOp = operators.contains(strAt+strNext)) || operators.contains(strAt)) {
         pushIdentifier(identStr, pushTo);
-        pushTo.emplace_back(TokenTypes::op, doubleOp ? strAt+strNext : strAt);
+        pushTo.emplace_back(TokenType::op, doubleOp ? strAt + strNext : strAt);
        return doubleOp ? 2 : 1;
     }
 
     // Check to see if the token is a block delimiter
-    if(blockDelim.contains(strAt)) {
+    else if(blockDelim.contains(strAt)) {
         pushIdentifier(identStr, pushTo);
-        pushTo.emplace_back(strAt == "{" ? TokenTypes::bgnBlk : TokenTypes::endBlk, strAt);
+        pushTo.emplace_back(strAt == "{" ? TokenType::bgnBlk : TokenType::endBlk, strAt);
+        pushTo.emplace_back(TokenType::eos, eos);
         return 1;
     }
     // Checks to see if the token is a bracket delimiter
-    if(bracketDelim.contains(strAt)){
+    else if(bracketDelim.contains(strAt)){
         pushIdentifier(identStr, pushTo);
-        pushTo.emplace_back(strAt == "[" ? TokenTypes::bgnBkt : TokenTypes::endBkt, strAt);
+        pushTo.emplace_back(strAt == "[" ? TokenType::bgnBkt : TokenType::endBkt, strAt);
         return 1;
     }
     // Checks to see if the token is a paren delimiter
-    if(parenDelim.contains(strAt)){
+    else if(parenDelim.contains(strAt)){
         pushIdentifier(identStr, pushTo);
-        pushTo.emplace_back(strAt == "(" ? TokenTypes::bgnPar : TokenTypes::endPar, strAt);
+        pushTo.emplace_back(strAt == "(" ? TokenType::bgnPar : TokenType::endPar, strAt);
         return 1;
     }
 
@@ -136,14 +159,15 @@ bool Tokenizer::pushIdentifier(string& identStr, vector<Token>& pushTo) {
 
     if(identStr.empty()) return false;
     // Set type as an identifier by default
-    TokenTypes type = TokenTypes::id;
+    TokenType type = TokenType::id;
 
     // If the given string is a keyword
-    if(keywords.contains(identStr)) type = TokenTypes::kwd;
+    if(keywords.contains(identStr)) type = TokenType::kwd;
     // If the given string is a literal string
-    else if(stringDelim.contains(identStr.substr(0, 1))) type = TokenTypes::litStr;
+    else if(stringDelim.contains(identStr.substr(0, 1))) type = TokenType::litStr;
     // If the given string is a literal boolean
-    else if(identStr == "true" || identStr == "false") type = TokenTypes::litBln;
+    else if(identStr == "true" || identStr == "false") type = TokenType::litBln;
+    else if(primitives.contains(identStr)) type = TokenType::prim;
     // If the given string is a float or integer
     else if(isdigit(identStr.at(0))) {
         bool isFloat = false;
@@ -152,7 +176,7 @@ bool Tokenizer::pushIdentifier(string& identStr, vector<Token>& pushTo) {
             if(!isFloat && c == '.') isFloat = true;  // Process as float after a decimal is detected
             else if(c == '.') throw SyntaxError("floats can only contain one decimal");  // Throw an error if multiple decimals are detected
         }
-        type = isFloat ? TokenTypes::litFlt : TokenTypes::litInt;
+        type = isFloat ? TokenType::litFlt : TokenType::litInt;
     }
 
     pushTo.emplace_back(type, identStr);
@@ -163,22 +187,23 @@ bool Tokenizer::pushIdentifier(string& identStr, vector<Token>& pushTo) {
 
 string dumpTokens(const vector<Token>& tokens) {
 
-    map<TokenTypes, string> tokenTypeNames = {
-        {TokenTypes::op, "op"},
-        {TokenTypes::eos, "eos"},
-        {TokenTypes::sep, "sep"},
-        {TokenTypes::kwd, "kwd"},
-        {TokenTypes::id, "id"},
-        {TokenTypes::litInt, "litInt"},
-        {TokenTypes::litFlt, "litFlt"},
-        {TokenTypes::litBln, "litBln"},
-        {TokenTypes::litStr, "litStr"},
-        {TokenTypes::bgnBlk, "bgnBlk"},
-        {TokenTypes::endBlk, "endBlk"},
-        {TokenTypes::bgnBkt, "bgnBkt"},
-        {TokenTypes::endBkt, "endBkt"},
-        {TokenTypes::bgnPar, "bgnPar"},
-        {TokenTypes::endPar, "endPar"},
+    map<TokenType, string> tokenTypeNames = {
+        {TokenType::op,     "op"},
+        {TokenType::eos,    "eos"},
+        {TokenType::sep,    "sep"},
+        {TokenType::kwd,    "kwd"},
+        {TokenType::id,     "id"},
+        {TokenType::litInt, "litInt"},
+        {TokenType::litFlt, "litFlt"},
+        {TokenType::litBln, "litBln"},
+        {TokenType::litStr, "litStr"},
+        {TokenType::bgnBlk, "bgnBlk"},
+        {TokenType::endBlk, "endBlk"},
+        {TokenType::bgnBkt, "bgnBkt"},
+        {TokenType::endBkt, "endBkt"},
+        {TokenType::bgnPar, "bgnPar"},
+        {TokenType::endPar, "endPar"},
+        {TokenType::prim, "prim"},
     };
 
     string dumped;
@@ -186,7 +211,7 @@ string dumpTokens(const vector<Token>& tokens) {
     for(const Token& token : tokens) {
         dumped += token.value + "<-" + tokenTypeNames.at(token.type)+" ";
 
-        if(token.type == TokenTypes::eos) dumped += "\n";
+        if(token.type == TokenType::eos) dumped += "\n";
     }
 
 
