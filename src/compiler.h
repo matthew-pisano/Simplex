@@ -10,6 +10,7 @@
 
 #include "utils.h"
 #include "tokenizer.h"
+#include "common.h"
 
 
 using namespace utils;
@@ -26,30 +27,6 @@ struct Type {
     map <Operator, std::function<any(any, any)>> opDefs;
 
     Type(string& token, map<Operator, std::function<any(any, any)>> opMap);
-};
-
-
-enum class OpCode {
-    mkVar,
-    rmVar,
-    mkFnc,
-    rmFnc,
-    setVar,
-    getVar,
-    callFnc,
-    add,
-    sub,
-    mul,
-    div,
-    binAnd,
-    binOr,
-    unNot,
-    gt,
-    lt,
-    ge,
-    le,
-    eq,
-    ne
 };
 
 

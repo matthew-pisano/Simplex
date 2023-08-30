@@ -50,7 +50,6 @@ vector<Instruction> Compiler::compile(const vector<Token>& tokens) {
 vector<Instruction> Compiler::compileLine(vector<Token> tokens, map<string, int>& functionGoTos) {
 
     vector<Instruction> instructions;
-    // OpCode lineCode = getLineOpCode(tokens);
 
     for(int i=0; i<tokens.size(); i++) {
         Token token = tokens[i];
@@ -79,6 +78,7 @@ vector<Instruction> Compiler::compileLine(vector<Token> tokens, map<string, int>
             string funcName = tokens[i+2].value;
             vector<string> funcInstructions = {funcName, tokens[i+1].value};
 
+            // Validates the argument declaration tokens and gets the argument types for the function declaration
             int j = i + 4;
             vector<Token> argsTokens;
             while(tokens[j].type != TokenType::endPar) {
@@ -94,6 +94,7 @@ vector<Instruction> Compiler::compileLine(vector<Token> tokens, map<string, int>
 
                 argsTokens.push_back(tokens[j]);
                 if(tokens[j].type == TokenType::prim) funcInstructions.push_back(tokens[j].value);
+                else if(tokens[j].type == TokenType::id) funcInstructions.push_back(tokens[j].value);
 
                 j++;
             }
@@ -102,7 +103,7 @@ vector<Instruction> Compiler::compileLine(vector<Token> tokens, map<string, int>
             instructions.emplace_back(OpCode::mkFnc, funcInstructions);
 
             // Copy argument initializations to beginning of function block
-            for(int k=0; k<argsTokens.size(); k++) tokens.insert(tokens.begin()+k+j+4, argsTokens[k]);
+            // for(int k=0; k<argsTokens.size(); k++) tokens.insert(tokens.begin()+k+j+4, argsTokens[k]);
 
             // Record the first body instruction as the goto value for this function
             functionGoTos.insert({funcName, j+4});
@@ -118,14 +119,6 @@ vector<Instruction> Compiler::compileLine(vector<Token> tokens, map<string, int>
 
 }
 
-OpCode Compiler::getLineOpCode(const vector<Token>& tokens) {
-
-    if(tokens[0].type == TokenType::id) {
-        if(tokens[0].value == "func") return OpCode::mkFnc;
-        else if(Tokenizer::primitives.contains(tokens[0].value)) return OpCode::mkVar;
-    }
-
-}
 
 int Compiler::getClosingIndex(vector<Token> tokens, int start, string openBlock, string closeBlock) {
     stack<string> stack;
@@ -148,17 +141,31 @@ vector<Instruction> Compiler::compileExpression(vector<Token> tokens, int start,
     vector<Instruction> instructions;
 
     for(int i=start ; i<end; i++) {
-        if(tokens[i].type == TokenType::op) {
-            if(tokens[i].value == "+") instructions.emplace_back(OpCode::add, vector<string>{});
-            else if(tokens[i].value == "-") instructions.emplace_back(OpCode::sub, vector<string>{});
-            else if(tokens[i].value == "*") instructions.emplace_back(OpCode::mul, vector<string>{});
-            else if(tokens[i].value == "/") instructions.emplace_back(OpCode::div, vector<string>{});
-            else if(tokens[i].value == "&&") instructions.emplace_back(OpCode::binAnd, vector<string>{});
-            else if(tokens[i].value == "||") instructions.emplace_back(OpCode::binOr, vector<string>{});
-            else if(tokens[i].value == "!") instructions.emplace_back(OpCode::unNot, vector<string>{});
-        }
+        if(Tokenizer::operators.contains(tokens[i].value))
+            instructions.emplace_back(Tokenizer::operators.at(tokens[i].value), vector<string>{});
         else if(tokens[i].type == TokenType::id) {
+            if(i<tokens.size()-1 && tokens[i+1].type == TokenType::bgnPar) {
+                if(tokens[i+2].value == ",") throw SyntaxError("Expected argument before comma in function call");
 
+                int j=i+1;
+                stack<TokenType> stack;
+                std::unordered_set<TokenType> blockBeginners= {TokenType::bgnPar, TokenType::bgnBkt, TokenType::bgnBlk};
+                while(!stack.empty()) {
+                    if(blockBeginners.contains(tokens[j].type)) stack.push(tokens[j].type);
+                    else if(tokens[j].type == TokenType::endPar && stack.top() == TokenType::bgnPar ||
+                            tokens[j].type == TokenType::endBkt && stack.top() == TokenType::bgnBkt ||
+                            tokens[j].type == TokenType::endBlk && stack.top() == TokenType::bgnBlk) stack.pop();
+                    else if(tokens[j].type == TokenType::endPar && stack.top() != TokenType::bgnPar ||
+                            tokens[j].type == TokenType::endBkt && stack.top() != TokenType::bgnBkt ||
+                            tokens[j].type == TokenType::endBlk && stack.top() != TokenType::bgnBlk)
+                        throw SyntaxError("Closing bracket '"+tokens[j].value+"' does not match last opening bracket");
+
+
+                    j++;
+                }
+
+                instructions.emplace_back(OpCode::callFnc, vector<string>{tokens[i].value});
+            }
         }
         else throw SyntaxError("Unexpected token "+tokens[i].value+" in expression");
     }

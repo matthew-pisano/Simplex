@@ -44,7 +44,9 @@ int main(int argc, char **argv) {
             // TODO: execute file
             string contents = readFile(inFile);
 
-            vector<Token> tokens = Tokenizer::tokenize(contents);
+            Tokenizer tokenizer;
+
+            vector<Token> tokens = tokenizer.tokenize(contents);
 
             cout << dumpTokens(tokens);
 
