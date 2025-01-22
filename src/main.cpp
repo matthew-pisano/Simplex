@@ -1,8 +1,8 @@
 #include <iostream>
 #include <fstream>
-#include "src/utils.h"
-#include "src/tokenizer.h"
-#include "lib/CLI11/CLI11.hpp"
+#include "utils.h"
+#include "tokenizer.h"
+#include "CLI11/CLI11.hpp"
 
 
 using namespace utils;
